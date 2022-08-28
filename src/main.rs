@@ -3,7 +3,6 @@ use std::io::{self, Read};
 use risp::{
     semantics::{env_tree::EnvironmentTree, eval::Evaluator},
     syntax::{
-        exp::Exp,
         parse::Parser,
         print::{PrintError, PrintWithSymbols},
         symb_interner::SymbolsInterner,
@@ -19,9 +18,9 @@ fn main() {
     let mut s = SymbolsInterner::new();
     let mut p = Parser { symbols: &mut s };
 
-    let es: Vec<Exp<bool, i32, _>> = p.parse_exps(i.as_str()).unwrap().1;
+    let es = p.parse_all_exps::<bool, i32>(i.as_str()).unwrap().1;
 
-    let mut c: EnvironmentTree<_, _> = EnvironmentTree::empty(0);
+    let mut c = EnvironmentTree::empty(0);
     let mut e = Evaluator::new(&s, &mut c);
 
     for ex in es {

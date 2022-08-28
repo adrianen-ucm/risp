@@ -11,6 +11,7 @@ pub struct EnvironmentTree<Var, Val> {
 }
 
 impl<Val, Var> EnvironmentTree<Val, Var> {
+    /// Creates an empty `EnvironmentTree` with the given initial capacity for the root environment.
     pub fn empty(capacity: usize) -> Self {
         let mut tree = Tree::new();
         let root_id = tree.set_root(HashMap::with_capacity(capacity));

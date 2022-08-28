@@ -99,14 +99,51 @@ impl<
                 Some(Exp::Symb(s)) => match self.environment.get(at, &s) {
                     Some(v) => self.eval_app_procedure(v.clone(), ls, at),
                     None => match self.symbols.resolve(s) {
-                        None => EvalStep::Done(Err(RuntimeError::UnknownSymbol(s))),
-                        Some("define") => self.eval_define(s, ls, at),
-                        Some("quote") => self.eval_quote(s, ls, at),
-                        Some("if") => self.eval_if(s, ls, at),
-                        Some("begin") => self.eval_begin(s, ls, at),
-                        Some("eval") => self.eval_eval(s, ls, at),
-                        Some("lambda") => self.eval_lambda(s, ls, at),
+                        Some("define") => {
+                            EvalStep::Done(match (ls.pop(), ls.pop(), ls.pop()) {
+                                (Some(Exp::Symb(x)), Some(e), None) => self
+                                    .eval_loop(e, at)
+                                    .and_then(|v| match self.environment.define(at, x, v) {
+                                        Ok(()) => Ok(Val::Void()),
+                                        Err((x, _)) => Err(RuntimeError::AlreadyDefined(x)),
+                                    }),
+                                _ => Err(RuntimeError::BadFormedExpression(s)),
+                            })
+                        }
+                        Some("quote") => match (ls.pop(), ls.pop()) {
+                            (Some(e), None) => EvalStep::Loop(Exp::Quot(Box::new(e)), at),
+                            _ => EvalStep::Done(Err(RuntimeError::BadFormedExpression(s))),
+                        },
+                        Some("if") => match (ls.pop(), ls.pop(), ls.pop(), ls.pop()) {
+                            (Some(c), Some(e1), Some(e2), None) => match self.eval_loop(c, at) {
+                                Ok(v) => EvalStep::Loop(if v.into() { e1 } else { e2 }, at),
+                                Err(err) => EvalStep::Done(Err(err)),
+                            },
+                            _ => EvalStep::Done(Err(RuntimeError::BadFormedExpression(s))),
+                        },
+                        Some("begin") => EvalStep::Done(
+                            self.eval_args(ls, at)
+                                .map(|mut args| args.pop().unwrap_or_else(Val::Void)),
+                        ),
+                        Some("eval") => match (ls.pop(), ls.pop()) {
+                            (Some(e), None) => match self.eval_loop(e, at) {
+                                Ok(Val::Quot(e)) => EvalStep::Loop(e, at),
+                                Ok(e) => EvalStep::Done(Ok(e)),
+                                Err(err) => EvalStep::Done(Err(err)),
+                            },
+                            _ => EvalStep::Done(Err(RuntimeError::BadFormedExpression(s))),
+                        },
+                        Some("lambda") => EvalStep::Done(match (ls.pop(), ls.pop(), ls.pop()) {
+                            (Some(Exp::List(ls)), Some(b), None) => {
+                                match ls.into_iter().rev().map(Exp::symb).collect() {
+                                    Some(ps) => Ok(Val::Lamb(ps, b, at.clone())),
+                                    None => Err(RuntimeError::BadFormedExpression(s)),
+                                }
+                            }
+                            _ => Err(RuntimeError::BadFormedExpression(s)),
+                        }),
                         Some(_) => EvalStep::Done(Err(RuntimeError::UnknownExpression(s))),
+                        None => EvalStep::Done(Err(RuntimeError::UnknownSymbol(s))),
                     },
                 },
                 Some(e) => match self.eval_loop(e, at) {
@@ -132,103 +169,6 @@ impl<
             .collect()
     }
 
-    fn eval_define(
-        &mut self,
-        s: Symb,
-        mut ls: Vec<Exp<Bool, Numb, Symb>>,
-        at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env> {
-        EvalStep::Done(match (ls.pop(), ls.pop(), ls.pop()) {
-            (Some(Exp::Symb(x)), Some(e), None) => {
-                self.eval_loop(e, at)
-                    .and_then(|v| match self.environment.define(at, x, v) {
-                        Ok(()) => Ok(Val::Void()),
-                        Err((x, _)) => Err(RuntimeError::AlreadyDefined(x)),
-                    })
-            }
-            _ => Err(RuntimeError::BadFormedExpression(s)),
-        })
-    }
-
-    fn eval_quote(
-        &mut self,
-        s: Symb,
-        mut ls: Vec<Exp<Bool, Numb, Symb>>,
-        at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env> {
-        match (ls.pop(), ls.pop()) {
-            (Some(e), None) => EvalStep::Loop(Exp::Quot(Box::new(e)), at),
-            _ => EvalStep::Done(Err(RuntimeError::BadFormedExpression(s))),
-        }
-    }
-
-    fn eval_if(
-        &mut self,
-        s: Symb,
-        mut ls: Vec<Exp<Bool, Numb, Symb>>,
-        at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env> {
-        match (ls.pop(), ls.pop(), ls.pop(), ls.pop()) {
-            (Some(c), Some(e1), Some(e2), None) => match self.eval_loop(c, at) {
-                Ok(v) => EvalStep::Loop(if v.into() { e1 } else { e2 }, at),
-                Err(err) => EvalStep::Done(Err(err)),
-            },
-            _ => EvalStep::Done(Err(RuntimeError::BadFormedExpression(s))),
-        }
-    }
-
-    fn eval_begin(
-        &mut self,
-        _s: Symb,
-        mut ls: Vec<Exp<Bool, Numb, Symb>>,
-        at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env> {
-        if ls.len() <= 1 {
-            return match ls.pop() {
-                None => EvalStep::Done(Ok(Val::Void())),
-                Some(e) => EvalStep::Loop(e, at),
-            };
-        }
-
-        EvalStep::Done(
-            self.eval_args(ls, at)
-                .map(|mut args| args.pop().unwrap_or_else(Val::Void)),
-        )
-    }
-
-    fn eval_eval(
-        &mut self,
-        s: Symb,
-        mut ls: Vec<Exp<Bool, Numb, Symb>>,
-        at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env> {
-        match (ls.pop(), ls.pop()) {
-            (Some(e), None) => match self.eval_loop(e, at) {
-                Ok(Val::Quot(e)) => EvalStep::Loop(e, at),
-                Ok(e) => EvalStep::Done(Ok(e)),
-                Err(err) => EvalStep::Done(Err(err)),
-            },
-            _ => EvalStep::Done(Err(RuntimeError::BadFormedExpression(s))),
-        }
-    }
-
-    fn eval_lambda(
-        &mut self,
-        s: Symb,
-        mut ls: Vec<Exp<Bool, Numb, Symb>>,
-        at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env> {
-        EvalStep::Done(match (ls.pop(), ls.pop(), ls.pop()) {
-            (Some(Exp::List(ls)), Some(b), None) => {
-                match ls.into_iter().map(Exp::symb).rev().collect() {
-                    Some(ps) => Ok(Val::Lamb(ps, b, at.clone())),
-                    None => Err(RuntimeError::BadFormedExpression(s)),
-                }
-            }
-            _ => Err(RuntimeError::BadFormedExpression(s)),
-        })
-    }
-
     fn eval_app_procedure(
         &mut self,
         v: Val<Bool, Numb, Symb, Env, RuntimeError<Bool, Numb, Symb, Env>>,
@@ -250,7 +190,6 @@ impl<
                             if let Err((x, _)) = ps
                                 .into_iter()
                                 .zip(args)
-                                .rev()
                                 .map(|(x, v)| self.environment.define(at, x, v))
                                 .collect::<Result<(), _>>()
                             {

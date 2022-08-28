@@ -8,6 +8,7 @@ pub struct SymbolsInterner {
 }
 
 impl SymbolsInterner {
+    /// Creates an empty `SymbolsInterner`.
     pub fn new() -> Self {
         SymbolsInterner {
             interner: StringInterner::default(),

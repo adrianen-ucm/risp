@@ -1,4 +1,4 @@
-/// Types that can be used to manage environments, which are variable-value associations.
+/// Types that can be used to manage environments, which are variable-value associations with inheritance.
 pub trait Environments {
     /// A reference to an environment.
     type Env;

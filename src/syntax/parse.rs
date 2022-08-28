@@ -1,50 +1,57 @@
-use std::str::FromStr;
+use std::{cell::RefCell, str::FromStr};
 
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, take_till, take_while},
     character::complete::{char, digit1},
-    combinator::{eof, fail, map},
+    combinator::{all_consuming, map, map_res, verify},
     multi::{many0, separated_list0},
-    sequence::delimited,
+    sequence::{delimited, pair},
     sequence::{preceded, terminated},
     IResult,
 };
 
 use super::{exp::Exp, symb::Symbols};
 
+/// A parser of Risp scripts that uses the `nom` parser combinator library.
 pub struct Parser<'a, Symbs: Symbols> {
     pub symbols: &'a mut Symbs,
 }
 
 impl<'a, Symbs: Symbols> Parser<'a, Symbs> {
-    pub fn parse_exps<'b, Bool: From<bool>, Numb: FromStr>(
+    /// Parse all the Risp expressions from an input `&str`, consuming it entirely.
+    pub fn parse_all_exps<'b, Bool: From<bool>, Numb: FromStr>(
         &mut self,
         input: &'b str,
     ) -> IResult<&'b str, Vec<Exp<Bool, Numb, Symbs::Symb>>> {
-        let (input, _) = blanks0(input)?;
-        let (input, exps) = many0(terminated(|i| self.parse_exp(i), blanks0))(input)?;
-        let (input, _) = eof(input)?;
-        Ok((input, exps))
+        all_consuming(preceded(blanks0, |i| self.parse_exps(i)))(input)
     }
 
-    pub fn parse_exp<'b, Bool: From<bool>, Numb: FromStr>(
+    fn parse_exp<'b, Bool: From<bool>, Numb: FromStr>(
         &mut self,
         input: &'b str,
     ) -> IResult<&'b str, Exp<Bool, Numb, Symbs::Symb>> {
-        if let Ok((input, ls)) = self.parse_list(input) {
-            Ok((input, Exp::List(ls)))
-        } else if let Ok((input, e)) = self.parse_quoted(input) {
-            Ok((input, Exp::Quot(Box::new(e))))
-        } else if let Ok((input, b)) = parse_bool(input) {
-            Ok((input, Exp::Bool(b)))
-        } else if let Ok((input, n)) = parse_numb(input) {
-            Ok((input, Exp::Numb(n)))
-        } else if let Ok((input, s)) = parse_symb(input) {
-            Ok((input, Exp::Symb(self.symbols.get_or_store(s))))
-        } else {
-            fail(input)
-        }
+        let this = RefCell::new(self);
+        let result = alt((
+            (map(|i| this.borrow_mut().parse_list(i), |ls| Exp::List(ls))),
+            map(
+                |i| this.borrow_mut().parse_quoted(i),
+                |e| Exp::Quot(Box::new(e)),
+            ),
+            map(parse_bool, |b| Exp::Bool(b)),
+            map(parse_numb, |n| Exp::Numb(n)),
+            map(parse_symb, |s| {
+                Exp::Symb(this.borrow_mut().symbols.get_or_store(s))
+            }),
+        ))(input);
+        result
+    }
+
+    fn parse_exps<'b, Bool: From<bool>, Numb: FromStr>(
+        &mut self,
+        input: &'b str,
+    ) -> IResult<&'b str, Vec<Exp<Bool, Numb, Symbs::Symb>>> {
+        many0(terminated(|i| self.parse_exp(i), blanks0))(input)
     }
 
     fn parse_quoted<'b, Bool: From<bool>, Numb: FromStr>(
@@ -58,27 +65,26 @@ impl<'a, Symbs: Symbols> Parser<'a, Symbs> {
         &mut self,
         input: &'b str,
     ) -> IResult<&'b str, Vec<Exp<Bool, Numb, Symbs::Symb>>> {
-        let (input, _) = char('(')(input)?;
-        let (input, _) = blanks0(input)?;
-        let (input, mut exps) = many0(terminated(|i| self.parse_exp(i), blanks0))(input)?;
-        let (input, _) = char(')')(input)?;
-        exps.reverse();
-        Ok((input, exps))
+        map(
+            delimited(pair(char('('), blanks0), |i| self.parse_exps(i), char(')')),
+            |mut ls| {
+                ls.reverse();
+                ls
+            },
+        )(input)
     }
 }
 
-fn blanks0(input: &str) -> IResult<&str, ()> {
+fn blanks0(input: &str) -> IResult<&str, Vec<&str>> {
     delimited(
         take_while(is_blank),
         separated_list0(take_while(is_blank), comment),
         take_while(is_blank),
     )(input)
-    .map(|(i, _)| (i, ()))
 }
 
 fn comment(input: &str) -> IResult<&str, &str> {
-    let (input, _) = char(';')(input)?;
-    take_till(is_line_break)(input)
+    preceded(char(';'), take_till(is_line_break))(input)
 }
 
 fn is_line_break(chr: char) -> bool {
@@ -97,18 +103,9 @@ fn parse_bool<Bool: From<bool>>(input: &str) -> IResult<&str, Bool> {
 }
 
 fn parse_numb<Numb: FromStr>(input: &str) -> IResult<&str, Numb> {
-    let (input, n) = digit1(input)?;
-    match n.parse() {
-        Ok(n) => Ok((input, n)),
-        Err(_) => fail(input),
-    }
+    map_res(digit1, |n: &str| n.parse())(input)
 }
 
 fn parse_symb(input: &str) -> IResult<&str, &str> {
-    let (input, sym) = is_not(" \t\n\r()'")(input)?;
-    if sym.is_empty() {
-        fail(input)
-    } else {
-        Ok((input, sym))
-    }
+    verify(is_not(" \t\n\r()'"), |s: &str| !s.is_empty())(input)
 }
