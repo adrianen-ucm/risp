@@ -11,6 +11,6 @@ pub mod semantics {
     pub mod env;
     pub mod env_tree;
     pub mod err;
-    pub mod eval; // TODO document and verify
+    pub mod eval; // TODO verify environment cleaning
     pub mod val; // TODO abstract builtin procedures to allow symbol/environment access
 }

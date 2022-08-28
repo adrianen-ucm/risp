@@ -4,15 +4,19 @@ use crate::syntax::{exp::Exp, symb::Symbols};
 
 use super::{env::Environments, err::RuntimeError, val::Val};
 
-pub type EvalResult<Bool, Numb, Symb, Env> = Result<
-    Val<Bool, Numb, Symb, Env, RuntimeError<Bool, Numb, Symb, Env>>,
-    RuntimeError<Bool, Numb, Symb, Env>,
->;
-
+/// An evaluator of Risp expressions, with read only access to some
+/// symbols and the capability of mutating an environment.
 pub struct Evaluator<'a, Symbs: Symbols, Envs: Environments> {
     symbols: &'a Symbs,
     environment: &'a mut Envs,
 }
+
+/// The `Result` of evaluating an `Exp` into a `Val` where a
+/// `RuntimeError` can happen.
+pub type EvalResult<Bool, Numb, Symb, Env> = Result<
+    Val<Bool, Numb, Symb, Env, RuntimeError<Bool, Numb, Symb, Env>>,
+    RuntimeError<Bool, Numb, Symb, Env>,
+>;
 
 enum EvalStep<Bool, Numb, Symb, Env> {
     Done(EvalResult<Bool, Numb, Symb, Env>),
@@ -33,6 +37,7 @@ impl<
         >,
     > Evaluator<'a, Symbs, Envs>
 {
+    /// Creates a new `Evaluator` with the given symbols and environment.
     pub fn new(symbols: &'a Symbs, environment: &'a mut Envs) -> Self {
         Evaluator {
             symbols: symbols,
@@ -40,6 +45,7 @@ impl<
         }
     }
 
+    /// Tries to evaluate an `Exp` into a `Val`.
     pub fn eval(&mut self, exp: Exp<Bool, Numb, Symb>) -> EvalResult<Bool, Numb, Symb, Env> {
         self.eval_loop(exp, self.environment.root())
     }
@@ -49,30 +55,27 @@ impl<
         exp: Exp<Bool, Numb, Symb>,
         at: Env,
     ) -> EvalResult<Bool, Numb, Symb, Env> {
-        let mut next_exp = exp;
-        let mut next_at = at;
+        let (mut next_exp, mut next_at) = (exp, at);
         loop {
             match self.eval_step(next_exp, next_at) {
                 EvalStep::Done(r) => {
+                    // TODO an attept to clean up the environment during evaluation.
                     if let Ok(ref l) = r {
                         if let Val::Lamb(_, _, _lambda_at) = l {
-                        } else {
-                            if at != next_at {
-                                self.environment.drop(next_at);
-                            }
+                        } else if at != next_at {
+                            self.environment.drop(next_at);
                         }
                     }
 
                     return r;
                 }
                 EvalStep::Loop(exp, at) => {
-                    next_exp = exp;
-
+                    // TODO an attept to clean up the environment during evaluation.
                     if at != next_at && !self.environment.has_children(next_at) {
                         self.environment.drop(next_at);
                     }
 
-                    next_at = at;
+                    (next_exp, next_at) = (exp, at)
                 }
             }
         }
@@ -179,26 +182,27 @@ impl<
             Val::BuiltIn(f) => EvalStep::Done(self.eval_args(ls, at).and_then(f)),
             Val::Lamb(ps, b, at_lambda) => {
                 if ps.len() != ls.len() {
-                    return EvalStep::Done(Err(RuntimeError::ArityMismatch()));
-                }
-
-                match self.eval_args(ls, at) {
-                    Err(err) => EvalStep::Done(Err(err)),
-                    Ok(args) => match self.environment.push(at_lambda, ps.len()) {
-                        None => EvalStep::Done(Err(RuntimeError::CouldNotPushEnvironment())),
-                        Some(at) => {
-                            if let Err((x, _)) = ps
-                                .into_iter()
-                                .zip(args)
-                                .map(|(x, v)| self.environment.define(at, x, v))
-                                .collect::<Result<(), _>>()
-                            {
-                                return EvalStep::Done(Err(RuntimeError::AlreadyDefined(x)));
+                    EvalStep::Done(Err(RuntimeError::ArityMismatch()))
+                } else {
+                    match self.eval_args(ls, at) {
+                        Err(err) => EvalStep::Done(Err(err)),
+                        Ok(args) => match self.environment.push(at_lambda, ps.len()) {
+                            None => EvalStep::Done(Err(RuntimeError::CouldNotPushEnvironment())),
+                            Some(at) => {
+                                match ps
+                                    .into_iter()
+                                    .zip(args)
+                                    .map(|(x, v)| self.environment.define(at, x, v))
+                                    .collect()
+                                {
+                                    Ok(()) => EvalStep::Loop(b, at),
+                                    Err((x, _)) => {
+                                        EvalStep::Done(Err(RuntimeError::AlreadyDefined(x)))
+                                    }
+                                }
                             }
-
-                            EvalStep::Loop(b, at)
-                        }
-                    },
+                        },
+                    }
                 }
             }
             v => EvalStep::Done(Err(RuntimeError::NotAProcedure(v))),
