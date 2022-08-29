@@ -11,7 +11,7 @@ pub mod semantics {
     pub mod env;
     pub mod env_tree;
     pub mod err;
-    pub mod eval; // TODO verify environment cleaning
+    pub mod eval; // verify environment cleaning
     pub mod prelude; // TODO lazy evaluation of and and or
     pub mod val;
 }
