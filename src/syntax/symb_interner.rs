@@ -10,7 +10,7 @@ pub struct SymbolsInterner {
 impl SymbolsInterner {
     /// Creates an empty `SymbolsInterner`.
     pub fn new() -> Self {
-        SymbolsInterner {
+        Self {
             interner: StringInterner::default(),
         }
     }

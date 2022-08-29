@@ -6,11 +6,13 @@ pub mod syntax {
     pub mod symb_interner;
 }
 
-// TODO builtin prelude
 pub mod semantics {
+    pub mod built_in;
     pub mod env;
     pub mod env_tree;
     pub mod err;
     pub mod eval; // TODO verify environment cleaning
-    pub mod val; // TODO abstract builtin procedures to allow symbol/environment access
+    pub mod prelude; // TODO lazy evaluation of and and or
+    pub mod res;
+    pub mod val;
 }

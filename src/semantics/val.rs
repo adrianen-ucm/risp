@@ -8,7 +8,7 @@ use crate::syntax::{
 
 /// A value that can result from the evaluation of an `Exp`.
 #[derive(Clone)]
-pub enum Val<Bool, Numb, Symb, Env, Err> {
+pub enum Val<Bool, Numb, Symb, Env, BuiltIn> {
     /// Absence of a value, mainly to denote a side effect.
     Void(),
     /// A boolean value of type `Bool`.
@@ -19,11 +19,11 @@ pub enum Val<Bool, Numb, Symb, Env, Err> {
     Quot(Exp<Bool, Numb, Symb>),
     /// A lambda with a reference to its environment.
     Lamb(Vec<Symb>, Exp<Bool, Numb, Symb>, Env),
-    /// A built-in procedure that can produce an error of type `Err`.
-    BuiltIn(fn(Vec<Self>) -> Result<Self, Err>),
+    // /// A built-in procedure that can produce.
+    BuiltIn(BuiltIn),
 }
 
-impl<Bool, Numb, Symb, Env, Err> Val<Bool, Numb, Symb, Env, Err> {
+impl<Bool, Numb, Symb, Env, BuiltIn> Val<Bool, Numb, Symb, Env, BuiltIn> {
     /// Returns the underlying number of a value if it
     /// corresponds to a number.
     pub fn numb(self) -> Option<Numb> {
@@ -43,7 +43,9 @@ impl<Bool, Numb, Symb, Env, Err> Val<Bool, Numb, Symb, Env, Err> {
     }
 }
 
-impl<Bool: Into<bool>, Numb, Symb, Ctx, Err> Into<bool> for Val<Bool, Numb, Symb, Ctx, Err> {
+impl<Bool: Into<bool>, Numb, Symb, Env, BuiltIn> Into<bool>
+    for Val<Bool, Numb, Symb, Env, BuiltIn>
+{
     fn into(self) -> bool {
         match self {
             Val::Bool(b) => b.into(),
@@ -52,8 +54,8 @@ impl<Bool: Into<bool>, Numb, Symb, Ctx, Err> Into<bool> for Val<Bool, Numb, Symb
     }
 }
 
-impl<Bool: Into<bool>, Numb: Display, Symb: Copy, Symbs: Symbols<Symb = Symb>, Env, Err>
-    PrintWithSymbols<Symbs> for Val<Bool, Numb, Symbs::Symb, Env, Err>
+impl<Bool: Into<bool>, Numb: Display, Symb: Copy, Symbs: Symbols<Symb = Symb>, Env, BuiltIn>
+    PrintWithSymbols<Symbs> for Val<Bool, Numb, Symbs::Symb, Env, BuiltIn>
 {
     fn print_with(self, symbols: &Symbs) -> Result<String, PrintError<Symbs::Symb>> {
         match self {

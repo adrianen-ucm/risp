@@ -1,28 +1,27 @@
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use crate::syntax::{
     print::{PrintError, PrintWithSymbols},
     symb::Symbols,
 };
 
-use super::val::Val;
-
 /// Errors that can arise during the evaluation of an `Exp`.
 #[derive(Clone)]
-pub enum RuntimeError<Bool, Numb, Symb, Env> {
+pub enum RuntimeError<Symb, Val> {
     AlreadyDefined(Symb),
     ArityMismatch(),
     BadFormedExpression(Symb),
     CouldNotPushEnvironment(),
+    InvalidArguments(),
     MissingProcedure(),
-    NotAProcedure(Val<Bool, Numb, Symb, Env, Self>),
+    NotAProcedure(Val),
     UndefinedVariable(Symb),
     UnknownExpression(Symb),
     UnknownSymbol(Symb),
 }
 
-impl<Bool: Into<bool>, Numb: Display, Symb: Copy + Debug, Symbs: Symbols<Symb = Symb>, Env>
-    PrintWithSymbols<Symbs> for RuntimeError<Bool, Numb, Symbs::Symb, Env>
+impl<Symb: Copy + Debug, Symbs: Symbols<Symb = Symb>, Val: PrintWithSymbols<Symbs>>
+    PrintWithSymbols<Symbs> for RuntimeError<Symbs::Symb, Val>
 {
     fn print_with(self, symbols: &Symbs) -> Result<String, PrintError<Symbs::Symb>> {
         match self {
@@ -36,6 +35,7 @@ impl<Bool: Into<bool>, Numb: Display, Symb: Copy + Debug, Symbs: Symbols<Symb = 
                 Some(s) => Ok(format!("Bad formed expression: {s}")),
             },
             RuntimeError::CouldNotPushEnvironment() => Ok(format!("Could not push environment")),
+            RuntimeError::InvalidArguments() => Ok(format!("Invalid arguments")),
             RuntimeError::MissingProcedure() => Ok(format!("Missing procedure")),
             RuntimeError::NotAProcedure(v) => v
                 .print_with(symbols)

@@ -6,7 +6,7 @@ use super::{
 };
 
 /// A Risp expression.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Exp<Bool, Numb, Symb> {
     /// A number of type `Numb`.
     Numb(Numb),
