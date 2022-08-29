@@ -1,13 +1,7 @@
 /// Types that can be used to manage environments, which are variable-value associations with inheritance.
-pub trait Environments {
+pub trait Environments<Var, Val> {
     /// A reference to an environment.
     type Env;
-
-    /// A variable.
-    type Var;
-
-    /// A value.
-    type Val;
 
     /// The root environment.
     fn root(&self) -> Self::Env;
@@ -22,16 +16,11 @@ pub trait Environments {
     fn push(&mut self, at: Self::Env, capacity: usize) -> Option<Self::Env>;
 
     /// Find the `Val` associated to a `Var` for a given environment.
-    fn get(&self, at: Self::Env, x: &Self::Var) -> Option<&Self::Val>;
+    fn get(&self, at: Self::Env, x: &Var) -> Option<&Val>;
 
     /// Associates a `Val` to a `Var` for a given environment, only the `Var` was
     /// not previously associated in the same environment.
     ///
     /// Returns the ownership of the given paremeters on failure.
-    fn define(
-        &mut self,
-        at: Self::Env,
-        x: Self::Var,
-        v: Self::Val,
-    ) -> Result<(), (Self::Var, Self::Val)>;
+    fn define(&mut self, at: Self::Env, x: Var, v: Val) -> Result<(), (Var, Val)>;
 }

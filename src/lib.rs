@@ -13,6 +13,5 @@ pub mod semantics {
     pub mod err;
     pub mod eval; // TODO verify environment cleaning
     pub mod prelude; // TODO lazy evaluation of and and or
-    pub mod res;
     pub mod val;
 }

@@ -1,20 +1,26 @@
-use std::hash::Hash;
+use std::{hash::Hash, marker::PhantomData};
 
 use crate::syntax::{exp::Exp, symb::Symbols};
 
-use super::{
-    built_in::EvalBuiltIn, env::Environments, err::RuntimeError, res::EvalResult, val::Val,
-};
+use super::{built_in::EvalBuiltIn, env::Environments, err::RuntimeError, val::Val};
+
+/// The `Result` of evaluating an `Exp` into a `Val` where a
+/// `RuntimeError` can happen.
+pub type EvalResult<Bool, Numb, Symb, Env, BuiltIn, BuiltInErr> = Result<
+    Val<Bool, Numb, Symb, Env, BuiltIn>,
+    RuntimeError<Symb, Val<Bool, Numb, Symb, Env, BuiltIn>, BuiltInErr>,
+>;
 
 /// An evaluator of Risp expressions, with read only access to some
 /// symbols and the capability of mutating an environment.
-pub struct Evaluator<'a, Symbs: Symbols, Envs: Environments> {
+pub struct Evaluator<'a, Val, Symbs: Symbols, Envs: Environments<Symbs::Symb, Val>> {
     symbols: &'a Symbs,
     environment: &'a mut Envs,
+    val: PhantomData<Val>,
 }
 
-enum EvalStep<Bool, Numb, Symb, Env, BuiltIn> {
-    Done(EvalResult<Bool, Numb, Symb, Env, BuiltIn>),
+enum EvalStep<Bool, Numb, Symb, Env, BuiltIn, BuiltInErr> {
+    Done(EvalResult<Bool, Numb, Symb, Env, BuiltIn, BuiltInErr>),
     Loop(Exp<Bool, Numb, Symb>, Env),
 }
 
@@ -24,19 +30,27 @@ impl<
         Numb: Clone,
         Symb: Eq + Hash + Copy,
         Env: Eq + Copy,
+        BuiltInErr,
         Symbs: Symbols<Symb = Symb>,
         Envs: Environments<
-            Var = Symb,
-            Val = Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>>,
+            Symb,
+            Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>>,
             Env = Env,
         >,
-    > Evaluator<'a, Symbs, Envs>
+    >
+    Evaluator<
+        'a,
+        Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>>,
+        Symbs,
+        Envs,
+    >
 {
     /// Creates a new `Evaluator` with the given symbols and environment.
     pub fn new(symbols: &'a Symbs, environment: &'a mut Envs) -> Self {
         Self {
             symbols: symbols,
             environment: environment,
+            val: PhantomData,
         }
     }
 
@@ -44,7 +58,14 @@ impl<
     pub fn eval(
         &mut self,
         exp: Exp<Bool, Numb, Symb>,
-    ) -> EvalResult<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>> {
+    ) -> EvalResult<
+        Bool,
+        Numb,
+        Symb,
+        Env,
+        EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>,
+        BuiltInErr,
+    > {
         self.eval_loop(exp, self.environment.root())
     }
 
@@ -52,7 +73,14 @@ impl<
         &mut self,
         exp: Exp<Bool, Numb, Symb>,
         at: Env,
-    ) -> EvalResult<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>> {
+    ) -> EvalResult<
+        Bool,
+        Numb,
+        Symb,
+        Env,
+        EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>,
+        BuiltInErr,
+    > {
         let (mut next_exp, mut next_at) = (exp, at);
         loop {
             match self.eval_step(next_exp, next_at) {
@@ -83,7 +111,14 @@ impl<
         &mut self,
         exp: Exp<Bool, Numb, Symb>,
         at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>> {
+    ) -> EvalStep<
+        Bool,
+        Numb,
+        Symb,
+        Env,
+        EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>,
+        BuiltInErr,
+    > {
         match exp {
             Exp::Numb(n) => EvalStep::Done(Ok(Val::Numb(n))),
             Exp::Bool(b) => EvalStep::Done(Ok(Val::Bool(b))),
@@ -161,8 +196,12 @@ impl<
         ls: Vec<Exp<Bool, Numb, Symb>>,
         at: Env,
     ) -> Result<
-        Vec<Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>>>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>>>,
+        Vec<Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>>>,
+        RuntimeError<
+            Symb,
+            Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>>,
+            BuiltInErr,
+        >,
     > {
         ls.into_iter()
             .rev()
@@ -172,15 +211,22 @@ impl<
 
     fn eval_app_procedure(
         &mut self,
-        v: Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>>,
+        v: Val<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>>,
         ls: Vec<Exp<Bool, Numb, Symb>>,
         at: Env,
-    ) -> EvalStep<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>> {
+    ) -> EvalStep<
+        Bool,
+        Numb,
+        Symb,
+        Env,
+        EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, BuiltInErr>,
+        BuiltInErr,
+    > {
         match v {
-            Val::BuiltIn(f) => EvalStep::Done(
-                self.eval_args(ls, at)
-                    .and_then(|vs| f.apply(vs, self.symbols)),
-            ),
+            Val::BuiltIn(f) => EvalStep::Done(self.eval_args(ls, at).and_then(|vs| {
+                f.apply(vs, self.symbols)
+                    .map_err(RuntimeError::BuiltInError)
+            })),
             Val::Lamb(ps, b, at_lambda) => {
                 if ps.len() != ls.len() {
                     EvalStep::Done(Err(RuntimeError::ArityMismatch()))

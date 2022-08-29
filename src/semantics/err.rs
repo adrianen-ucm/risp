@@ -7,10 +7,11 @@ use crate::syntax::{
 
 /// Errors that can arise during the evaluation of an `Exp`.
 #[derive(Clone)]
-pub enum RuntimeError<Symb, Val> {
+pub enum RuntimeError<Symb, Val, BuiltInErr> {
     AlreadyDefined(Symb),
     ArityMismatch(),
     BadFormedExpression(Symb),
+    BuiltInError(BuiltInErr),
     CouldNotPushEnvironment(),
     InvalidArguments(),
     MissingProcedure(),
@@ -20,8 +21,12 @@ pub enum RuntimeError<Symb, Val> {
     UnknownSymbol(Symb),
 }
 
-impl<Symb: Copy + Debug, Symbs: Symbols<Symb = Symb>, Val: PrintWithSymbols<Symbs>>
-    PrintWithSymbols<Symbs> for RuntimeError<Symbs::Symb, Val>
+impl<
+        Symb: Copy + Debug,
+        Symbs: Symbols<Symb = Symb>,
+        Val: PrintWithSymbols<Symbs>,
+        BuiltInErr: PrintWithSymbols<Symbs>,
+    > PrintWithSymbols<Symbs> for RuntimeError<Symbs::Symb, Val, BuiltInErr>
 {
     fn print_with(self, symbols: &Symbs) -> Result<String, PrintError<Symbs::Symb>> {
         match self {
@@ -34,6 +39,7 @@ impl<Symb: Copy + Debug, Symbs: Symbols<Symb = Symb>, Val: PrintWithSymbols<Symb
                 None => Err(PrintError::UnknownSymbol(s)),
                 Some(s) => Ok(format!("Bad formed expression: {s}")),
             },
+            RuntimeError::BuiltInError(e) => e.print_with(symbols),
             RuntimeError::CouldNotPushEnvironment() => Ok(format!("Could not push environment")),
             RuntimeError::InvalidArguments() => Ok(format!("Invalid arguments")),
             RuntimeError::MissingProcedure() => Ok(format!("Missing procedure")),

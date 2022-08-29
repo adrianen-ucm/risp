@@ -1,5 +1,5 @@
 use std::{
-    fmt::Display,
+    fmt::{Debug, Display},
     iter::{Product, Sum},
     ops::Sub,
 };
@@ -9,18 +9,37 @@ use crate::syntax::{
     symb::Symbols,
 };
 
-use super::{built_in::EvalBuiltIn, err::RuntimeError, res::EvalResult, val::Val};
+use super::{built_in::EvalBuiltIn, val::Val};
 
-impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
+// TODO more specific
+pub enum PreludeError<Symb> {
+    InvalidArguments(),
+    ArityMismatch(),
+    UnknownSymbol(Symb),
+}
+
+impl<Symb: Copy + Debug, Symbs: Symbols<Symb = Symb>> PrintWithSymbols<Symbs>
+    for PreludeError<Symbs::Symb>
+{
+    fn print_with(self, _symbols: &Symbs) -> Result<String, PrintError<<Symbs as Symbols>::Symb>> {
+        match self {
+            PreludeError::InvalidArguments() => Ok(format!("Invalid arguments")),
+            PreludeError::ArityMismatch() => Ok(format!("Arity mismatch")),
+            PreludeError::UnknownSymbol(s) => Ok(format!("Unknown symbol: {s:?}")),
+        }
+    }
+}
+
+impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs, PreludeError<Symb>> {
     pub fn add(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Numb: Sum,
     {
         match vs.into_iter().map(Val::numb).sum() {
-            None => Err(RuntimeError::InvalidArguments()),
+            None => Err(PreludeError::InvalidArguments()),
             Some(n) => Ok(Val::Numb(n)),
         }
     }
@@ -28,12 +47,12 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
     pub fn mul(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Numb: Product,
     {
         match vs.into_iter().map(Val::numb).product() {
-            None => Err(RuntimeError::InvalidArguments()),
+            None => Err(PreludeError::InvalidArguments()),
             Some(n) => Ok(Val::Numb(n)),
         }
     }
@@ -41,16 +60,16 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
     pub fn sub(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Numb: Sub<Output = Numb>,
     {
         match vs.into_iter().map(Val::numb).collect::<Option<Vec<Numb>>>() {
-            None => Err(RuntimeError::InvalidArguments()),
+            None => Err(PreludeError::InvalidArguments()),
             Some(ns) => {
                 let mut iter = ns.into_iter();
                 match iter.next() {
-                    None => Err(RuntimeError::ArityMismatch()),
+                    None => Err(PreludeError::ArityMismatch()),
                     Some(n) => Ok(Val::Numb(iter.fold(n, |acc, i| acc - i))),
                 }
             }
@@ -60,7 +79,7 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
     pub fn et(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool>,
         Numb: PartialEq,
@@ -68,16 +87,16 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Numb(l), Val::Numb(r)) => Ok(Val::Bool(Bool::from(l == r))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn gt(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -85,16 +104,16 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Numb(l), Val::Numb(r)) => Ok(Val::Bool(Bool::from(l > r))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn lt(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -102,16 +121,16 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Numb(l), Val::Numb(r)) => Ok(Val::Bool(Bool::from(l < r))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn gte(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -119,16 +138,16 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Numb(l), Val::Numb(r)) => Ok(Val::Bool(Bool::from(l >= r))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn lte(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -136,64 +155,64 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Numb(l), Val::Numb(r)) => Ok(Val::Bool(Bool::from(l <= r))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn not(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool> + Into<bool>,
     {
         match (vs.pop(), vs.pop()) {
             (Some(v), None) => match v {
                 Val::Bool(b) => Ok(Val::Bool(Bool::from(!b.into()))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn and(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool> + Into<bool>,
     {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Bool(l), Val::Bool(r)) => Ok(Val::Bool(Bool::from(l.into() && r.into()))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn or(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: From<bool> + Into<bool>,
     {
         match (vs.pop(), vs.pop(), vs.pop()) {
             (Some(r), Some(l), None) => match (l, r) {
                 (Val::Bool(l), Val::Bool(r)) => Ok(Val::Bool(Bool::from(l.into() || r.into()))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Err(PreludeError::InvalidArguments()),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn eq(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: PartialEq + From<bool>,
         Numb: PartialEq,
@@ -206,32 +225,32 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
                 (Val::Bool(l), Val::Bool(r)) => Ok(Val::Bool(Bool::from(l == r))),
                 (Val::Numb(l), Val::Numb(r)) => Ok(Val::Bool(Bool::from(l == r))),
                 (Val::Quot(l), Val::Quot(r)) => Ok(Val::Bool(Bool::from(l == r))),
-                (Val::BuiltIn(_), _) => Err(RuntimeError::InvalidArguments()),
-                (_, Val::BuiltIn(_)) => Err(RuntimeError::InvalidArguments()),
-                (Val::Lamb(_, _, _), _) => Err(RuntimeError::InvalidArguments()),
-                (_, Val::Lamb(_, _, _)) => Err(RuntimeError::InvalidArguments()),
+                (Val::BuiltIn(_), _) => Err(PreludeError::InvalidArguments()),
+                (_, Val::BuiltIn(_)) => Err(PreludeError::InvalidArguments()),
+                (Val::Lamb(_, _, _), _) => Err(PreludeError::InvalidArguments()),
+                (_, Val::Lamb(_, _, _)) => Err(PreludeError::InvalidArguments()),
                 _ => Ok(Val::Bool(Bool::from(false))),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 
     pub fn newline(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self> {
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>> {
         if vs.is_empty() {
             println!("");
             Ok(Val::Void())
         } else {
-            Err(RuntimeError::ArityMismatch())
+            Err(PreludeError::ArityMismatch())
         }
     }
 
     pub fn display(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
+    ) -> Result<Val<Bool, Numb, Symb, Env, Self>, PreludeError<Symb>>
     where
         Bool: Into<bool>,
         Numb: Display,
@@ -244,9 +263,9 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
                     println!("{s}");
                     Ok(Val::Void())
                 }
-                Err(PrintError::UnknownSymbol(s)) => Err(RuntimeError::UnknownSymbol(s)),
+                Err(PrintError::UnknownSymbol(s)) => Err(PreludeError::UnknownSymbol(s)),
             },
-            _ => Err(RuntimeError::ArityMismatch()),
+            _ => Err(PreludeError::ArityMismatch()),
         }
     }
 }

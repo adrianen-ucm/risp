@@ -22,10 +22,8 @@ impl<Val, Var> EnvironmentTree<Val, Var> {
     }
 }
 
-impl<Var: Eq + Hash, Val> Environments for EnvironmentTree<Var, Val> {
+impl<Var: Eq + Hash, Val> Environments<Var, Val> for EnvironmentTree<Var, Val> {
     type Env = NodeId;
-    type Val = Val;
-    type Var = Var;
 
     fn root(&self) -> Self::Env {
         self.root_id
