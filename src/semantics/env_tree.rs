@@ -15,10 +15,7 @@ impl<Val, Var> EnvironmentTree<Val, Var> {
     pub fn empty(capacity: usize) -> Self {
         let mut tree = Tree::new();
         let root_id = tree.set_root(HashMap::with_capacity(capacity));
-        Self {
-            root_id: root_id,
-            tree: tree,
-        }
+        Self { root_id, tree }
     }
 }
 

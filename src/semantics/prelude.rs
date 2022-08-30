@@ -317,7 +317,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
         match (vs.pop(), vs.pop()) {
             (Some(v), None) => match v.print_with(symbols) {
                 Ok(s) => {
-                    println!("{s}");
+                    print!("{s}");
                     Ok(Val::Void())
                 }
                 Err(PrintError::UnknownSymbol(s)) => Err(RuntimeError::UnknownSymbol(s)),

@@ -47,8 +47,8 @@ impl<
     /// Creates a new `Evaluator` with the given symbols and environment.
     pub fn new(symbols: &'a Symbs, environment: &'a mut Envs) -> Self {
         Self {
-            symbols: symbols,
-            environment: environment,
+            symbols,
+            environment,
             val: PhantomData,
         }
     }

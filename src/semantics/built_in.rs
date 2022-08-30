@@ -20,7 +20,7 @@ impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
             RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
         >,
     ) -> Self {
-        Self { built_in: built_in }
+        Self { built_in }
     }
 
     pub fn apply(

@@ -10,40 +10,47 @@ use risp::{
 };
 
 fn main() {
-    // TODO provisional interpreter
-    let mut buf = Vec::new();
-    let _ = io::stdin().read_to_end(&mut buf);
-    let i = std::str::from_utf8(&buf).unwrap().to_string();
+    let mut buffer = Vec::new();
+    if let Err(err) = io::stdin().read_to_end(&mut buffer) {
+        println!("Error reading input: {err}");
+        return;
+    }
+
+    let input = match std::str::from_utf8(&buffer) {
+        Ok(input) => input,
+        Err(err) => {
+            println!("Error decoding input: {err}");
+            return;
+        }
+    };
 
     let mut symbols = SymbolsInterner::new();
-
-    let mut env = EnvironmentTree::empty(0);
-
-    if let Err(x) = EvalBuiltIn::load_prelude(&mut env, &mut symbols) {
+    let mut environment = EnvironmentTree::empty(0);
+    if let Err(x) = EvalBuiltIn::load_prelude(&mut environment, &mut symbols) {
         println!("Error loading {x} from prelude");
         return;
     };
 
-    // Parse expressions
     let mut parser = Parser::new(&mut symbols);
-    let exs = parser.parse_all_exps::<bool, i64>(i.as_str()).unwrap().1;
+    let program = match parser.parse_all_exps::<bool, i64>(input) {
+        Ok((_, program)) => program,
+        Err(err) => {
+            println!("Error parsing the program: {err}");
+            return;
+        }
+    };
 
-    // Evaluate expressions
-    let mut ev = Evaluator::new(&symbols, &mut env);
-    for ex in exs {
-        match ev.eval(ex) {
-            Err(e) => match e.print_with(&symbols) {
+    let mut evaluator = Evaluator::new(&symbols, &mut environment);
+    for expression in program {
+        if let Err(err) = evaluator.eval(expression) {
+            match err.print_with(&symbols) {
                 Err(PrintError::UnknownSymbol(s)) => {
-                    println!("Unknown symbol when trying to print an error: {s:?}")
+                    println!("Unknown symbol when trying to print a runtime error: {s:?}")
                 }
-                Ok(s) => println!("Error: {}", s.as_str()),
-            },
-            Ok(v) => match v.print_with(&symbols) {
-                Err(PrintError::UnknownSymbol(s)) => {
-                    println!("Unknown symbol when trying to print the result: {s:?}")
+                Ok(err) => {
+                    println!("Runtime error: {err}")
                 }
-                Ok(s) => println!("Result: {}", s.as_str()),
-            },
+            }
         }
     }
 }

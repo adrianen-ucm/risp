@@ -20,7 +20,7 @@ pub struct Parser<'a, Symbs: Symbols> {
 
 impl<'a, Symbs: Symbols> Parser<'a, Symbs> {
     pub fn new(symbols: &'a mut Symbs) -> Self {
-        Self { symbols: symbols }
+        Self { symbols }
     }
 
     /// Parse all the Risp expressions from an input `&str`, consuming it entirely.

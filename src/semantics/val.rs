@@ -19,7 +19,7 @@ pub enum Val<Bool, Numb, Symb, Env, BuiltIn> {
     Quot(Exp<Bool, Numb, Symb>),
     /// A lambda with a reference to its environment.
     Lamb(Vec<Symb>, Exp<Bool, Numb, Symb>, Env),
-    // /// A built-in procedure that can produce.
+    /// A built-in procedure.
     BuiltIn(BuiltIn),
 }
 
