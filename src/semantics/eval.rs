@@ -2,14 +2,9 @@ use std::{hash::Hash, marker::PhantomData};
 
 use crate::syntax::{exp::Exp, symb::Symbols};
 
-use super::{built_in::EvalBuiltIn, env::Environments, err::RuntimeError, val::Val};
-
-/// The `Result` of evaluating an `Exp` into a `Val` where a
-/// `RuntimeError` can happen.
-pub type EvalResult<Bool, Numb, Symb, Env, BuiltIn> = Result<
-    Val<Bool, Numb, Symb, Env, BuiltIn>,
-    RuntimeError<Symb, Val<Bool, Numb, Symb, Env, BuiltIn>>,
->;
+use super::{
+    built_in::EvalBuiltIn, env::Environments, err::RuntimeError, res::EvalResult, val::Val,
+};
 
 /// An evaluator of Risp expressions, with read only access to some
 /// symbols and the capability of mutating an environment.

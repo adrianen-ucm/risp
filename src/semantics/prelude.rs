@@ -9,9 +9,12 @@ use crate::syntax::{
     symb::Symbols,
 };
 
-use super::{built_in::EvalBuiltIn, env::Environments, err::RuntimeError, val::Val};
+use super::{
+    built_in::EvalBuiltIn, env::Environments, err::RuntimeError, res::EvalResult, val::Val,
+};
 
 impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
+    /// Define some built-in procedures and aliases in the given environment.
     pub fn load_prelude<'a, Envs: Environments<Symb, Val<Bool, Numb, Symb, Env, Self>, Env = Env>>(
         env: &mut Envs,
         symbols: &mut Symbs,
@@ -50,10 +53,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn add(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Numb: Sum,
     {
@@ -66,10 +66,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn mul(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Numb: Product,
     {
@@ -82,10 +79,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn sub(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Numb: Sub<Output = Numb>,
     {
@@ -104,10 +98,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn et(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool>,
         Numb: PartialEq,
@@ -124,10 +115,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn gt(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -144,10 +132,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn lt(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -164,10 +149,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn gte(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -184,10 +166,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn lte(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool>,
         Numb: PartialOrd,
@@ -204,10 +183,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn not(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool> + Into<bool>,
     {
@@ -223,10 +199,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn and(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool> + Into<bool>,
     {
@@ -242,10 +215,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn or(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: From<bool> + Into<bool>,
     {
@@ -261,10 +231,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn eq(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: PartialEq + From<bool>,
         Numb: PartialEq,
@@ -289,10 +256,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn newline(
         vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         _symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    > {
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self> {
         if vs.is_empty() {
             println!("");
             Ok(Val::Void())
@@ -304,10 +268,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
     fn display(
         mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
         symbols: &Symbs,
-    ) -> Result<
-        Val<Bool, Numb, Symb, Env, Self>,
-        RuntimeError<Symb, Val<Bool, Numb, Symb, Env, Self>>,
-    >
+    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
     where
         Bool: Into<bool>,
         Numb: Display,
