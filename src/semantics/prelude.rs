@@ -36,8 +36,6 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
             (">=", Val::BuiltIn(EvalBuiltIn::new(Self::gte))),
             ("<=", Val::BuiltIn(EvalBuiltIn::new(Self::lte))),
             ("not", Val::BuiltIn(EvalBuiltIn::new(Self::not))),
-            ("and", Val::BuiltIn(EvalBuiltIn::new(Self::and))),
-            ("or", Val::BuiltIn(EvalBuiltIn::new(Self::or))),
             ("eq?", Val::BuiltIn(EvalBuiltIn::new(Self::eq))),
             ("newline", Val::BuiltIn(EvalBuiltIn::new(Self::newline))),
             ("display", Val::BuiltIn(EvalBuiltIn::new(Self::display))),
@@ -190,39 +188,7 @@ impl<Bool, Numb, Symb, Env, Symbs: Symbols<Symb = Symb>> EvalBuiltIn<Bool, Numb,
         match (vs.pop(), vs.pop()) {
             (Some(v), None) => match v {
                 Val::Bool(b) => Ok(Val::Bool(Bool::from(!b.into()))),
-                _ => Err(RuntimeError::InvalidArguments()),
-            },
-            _ => Err(RuntimeError::ArityMismatch()),
-        }
-    }
-
-    fn and(
-        mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
-        _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
-    where
-        Bool: From<bool> + Into<bool>,
-    {
-        match (vs.pop(), vs.pop(), vs.pop()) {
-            (Some(r), Some(l), None) => match (l, r) {
-                (Val::Bool(l), Val::Bool(r)) => Ok(Val::Bool(Bool::from(l.into() && r.into()))),
-                _ => Err(RuntimeError::InvalidArguments()),
-            },
-            _ => Err(RuntimeError::ArityMismatch()),
-        }
-    }
-
-    fn or(
-        mut vs: Vec<Val<Bool, Numb, Symb, Env, Self>>,
-        _symbols: &Symbs,
-    ) -> EvalResult<Bool, Numb, Symb, Env, Self>
-    where
-        Bool: From<bool> + Into<bool>,
-    {
-        match (vs.pop(), vs.pop(), vs.pop()) {
-            (Some(r), Some(l), None) => match (l, r) {
-                (Val::Bool(l), Val::Bool(r)) => Ok(Val::Bool(Bool::from(l.into() || r.into()))),
-                _ => Err(RuntimeError::InvalidArguments()),
+                _ => Ok(Val::Bool(Bool::from(false))),
             },
             _ => Err(RuntimeError::ArityMismatch()),
         }

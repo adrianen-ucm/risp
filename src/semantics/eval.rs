@@ -21,7 +21,7 @@ enum EvalStep<Bool, Numb, Symb, Env, BuiltIn> {
 
 impl<
         'a,
-        Bool: Into<bool> + Clone,
+        Bool: Into<bool> + From<bool> + Clone,
         Numb: Clone,
         Symb: Eq + Hash + Copy,
         Env: Eq + Copy,
@@ -151,6 +151,42 @@ impl<
                             }
                             _ => Err(RuntimeError::BadFormedExpression(s)),
                         }),
+                        Some("and") => {
+                            let mut last = Val::Bool(Bool::from(true));
+                            while let Some(e) = ls.pop() {
+                                match self.eval_loop(e, at) {
+                                    Err(err) => return EvalStep::Done(Err(err)),
+                                    Ok(Val::Bool(b)) => {
+                                        if b.into() {
+                                            last = Val::Bool(Bool::from(true));
+                                        } else {
+                                            return EvalStep::Done(Ok(Val::Bool(Bool::from(
+                                                false,
+                                            ))));
+                                        }
+                                    }
+
+                                    Ok(v) => last = v,
+                                }
+                            }
+
+                            EvalStep::Done(Ok(last))
+                        }
+                        Some("or") => {
+                            while let Some(e) = ls.pop() {
+                                match self.eval_loop(e, at) {
+                                    Err(err) => return EvalStep::Done(Err(err)),
+                                    Ok(Val::Bool(b)) => {
+                                        if b.into() {
+                                            return EvalStep::Done(Ok(Val::Bool(Bool::from(true))));
+                                        }
+                                    }
+                                    Ok(v) => return EvalStep::Done(Ok(v)),
+                                }
+                            }
+
+                            EvalStep::Done(Ok(Val::Bool(Bool::from(false))))
+                        }
                         Some(_) => EvalStep::Done(Err(RuntimeError::UnknownExpression(s))),
                         None => EvalStep::Done(Err(RuntimeError::UnknownSymbol(s))),
                     },
