@@ -6,9 +6,6 @@ pub trait Environments<Var, Val> {
     /// The root environment.
     fn root(&self) -> Self::Env;
 
-    /// Checks if a given environment has any child.
-    fn has_children(&self, at: Self::Env) -> bool;
-
     /// Drops the given environment and its children.
     fn drop(&mut self, at: Self::Env);
 

@@ -62,8 +62,8 @@ impl<Bool: Into<bool>, Numb: Display, Symb: Copy, Symbs: Symbols<Symb = Symb>, E
             Val::Void() => Ok(format!("#<void>")),
             Val::Bool(b) => Ok(format!("{}", if b.into() { "#t" } else { "#f" })),
             Val::Numb(n) => Ok(format!("{n}")),
-            Val::Lamb(_, _, _) => Ok(format!("#<procedure:lambda>")),
-            Val::BuiltIn(_) => Ok(format!("#<procedure:builtin>")),
+            Val::Lamb(_, _, _) => Ok(format!("#<procedure>")),
+            Val::BuiltIn(_) => Ok(format!("#<procedure>")),
             Val::Quot(e) => e.print_with(symbols).map(|s| format!("'{s}")),
         }
     }

@@ -26,13 +26,6 @@ impl<Var: Eq + Hash, Val> Environments<Var, Val> for EnvironmentTree<Var, Val> {
         self.root_id
     }
 
-    fn has_children(&self, at: Self::Env) -> bool {
-        self.tree
-            .get(at)
-            .map(|n| n.first_child().is_some())
-            .unwrap_or(false)
-    }
-
     fn drop(&mut self, at: Self::Env) {
         self.tree.remove(at, RemoveBehavior::DropChildren);
     }

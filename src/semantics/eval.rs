@@ -65,23 +65,40 @@ impl<
         loop {
             match self.eval_step(next_exp, next_at) {
                 EvalStep::Done(r) => {
-                    // TODO an attept to clean up the environment during evaluation.
-                    if let Ok(ref l) = r {
-                        if let Val::Lamb(_, _, _lambda_at) = l {
-                        } else if at != next_at {
-                            self.environment.drop(next_at);
+                    // An attept to clean up the environment during evaluation.
+                    //
+                    // If at != next_at, then next_at has been created within the execution
+                    // of this loop as the fresh invocation environment of a lambda.
+                    //
+                    // As the only way for a lambda created within the next_at environment
+                    // subtree to escape to other environments is by returning such lambda
+                    // at this point, the next_at environment subtree can be removed when
+                    // the result value is not a lambda.
+                    if at != next_at {
+                        match r {
+                            Ok(Val::Lamb(_, _, _)) => (),
+                            _ => self.environment.drop(next_at),
                         }
                     }
 
                     return r;
                 }
-                EvalStep::Loop(exp, at) => {
-                    // TODO an attept to clean up the environment during evaluation.
-                    if at != next_at && !self.environment.has_children(next_at) {
+                EvalStep::Loop(exp, continue_at) => {
+                    // An attept to clean up the environment during evaluation.
+                    //
+                    // If at != next_at, then next_at has been created within the execution
+                    // of this loop as the fresh invocation environment of a lambda. Also,
+                    // if continue_at != next_at, then continue_at is again from a fresh
+                    // lambda invocation.
+                    //
+                    // As the next_at subtree has not returned any value result that could
+                    // be a lambda created within it, and a new environment is going to be
+                    // used, the next_at environment tree can be removed.
+                    if at != next_at && continue_at != next_at {
                         self.environment.drop(next_at);
                     }
 
-                    (next_exp, next_at) = (exp, at)
+                    (next_exp, next_at) = (exp, continue_at)
                 }
             }
         }
@@ -165,7 +182,6 @@ impl<
                                             ))));
                                         }
                                     }
-
                                     Ok(v) => last = v,
                                 }
                             }
