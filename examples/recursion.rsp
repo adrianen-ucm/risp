@@ -1,4 +1,5 @@
 (define fib (lambda (n) (begin
+  ; A recursive function
   (define go (lambda (n a0 a1) (if
     (<= n 0)
     a0 
@@ -10,9 +11,10 @@
 (display (fib 80))(newline)
 
 (define mutual (lambda (n) (begin
+  ; Mutually recursive functions
   (define dec (lambda (n) (check (- n 1))))
   (define check (lambda (n) (if (<= n 0) 'done (dec n))))
-  (dec n)
+  (check n)
 )))
 
 (display (mutual 100000))(newline)

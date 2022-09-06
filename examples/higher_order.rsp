@@ -1,0 +1,11 @@
+(define curry (lambda (f x) 
+  (lambda (y) (f x y)
+)))
+
+(define add_3 (curry + 3))
+(define mul_3 (curry * 3))
+
+(display (add_3 1))(newline)
+(display (add_3 2))(newline)
+(display (mul_3 3))(newline)
+(display (mul_3 4))(newline)

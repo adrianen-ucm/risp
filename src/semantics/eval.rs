@@ -63,10 +63,11 @@ impl<
     ) -> EvalResult<Bool, Numb, Symb, Env, EvalBuiltIn<Bool, Numb, Symb, Env, Symbs>> {
         let (mut next_exp, mut next_at) = (exp, at);
         loop {
+            // Although it has not been formally proven that the following attempts 
+            // to clean up the environment do not break the intended semantics,
+            // here it is commented the informal reasoning.
             match self.eval_step(next_exp, next_at) {
                 EvalStep::Done(r) => {
-                    // An attept to clean up the environment during evaluation.
-                    //
                     // If at != next_at, then next_at has been created within the execution
                     // of this loop as the fresh invocation environment of a lambda.
                     //
@@ -84,8 +85,6 @@ impl<
                     return r;
                 }
                 EvalStep::Loop(exp, continue_at) => {
-                    // An attept to clean up the environment during evaluation.
-                    //
                     // If at != next_at, then next_at has been created within the execution
                     // of this loop as the fresh invocation environment of a lambda. Also,
                     // if continue_at != next_at, then continue_at is again from a fresh

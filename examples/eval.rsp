@@ -1,0 +1,11 @@
+(define code '(begin 
+  (display '(hello world))
+  (newline)
+))
+
+; Display code as data
+(display code)
+(newline)
+
+; Evaluate the data as code
+(eval code)

@@ -10,7 +10,7 @@ pub struct EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
 }
 
 impl<Bool, Numb, Symb, Env, Symbs> EvalBuiltIn<Bool, Numb, Symb, Env, Symbs> {
-    /// Create a built-in procedure from a function pointer.
+    /// Creates a built-in procedure from a function pointer.
     pub fn new(
         built_in: fn(
             Vec<Val<Bool, Numb, Symb, Env, Self>>,
